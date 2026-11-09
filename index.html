@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Zoom Grid Template — WebNova Studio</title>
+  <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/thegoodmonolith">
+  <style>
+    @font-face {
+      font-family: "PPNeueMontreal";
+      src: url("https://assets.codepen.io/7558/PPNeueMontreal-Variable.woff2") format("woff2");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    :root {
+      --spacing-base: 1rem;
+      --spacing-md: 1.5rem;
+      --spacing-lg: 2rem;
+      --color-text: #ffffff;
+      --color-accent: #2868c7;
+      --transition-medium: 0.3s ease;
+      --font-size-base: 14px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: "PPNeueMontreal", sans-serif;
+      background: #090a0f;
+      overflow: hidden;
+      height: 100vh;
+      cursor: grab;
+      color: var(--color-text);
+    }
+
+    body.dragging {
+      cursor: grabbing;
+    }
+
+    body.zoom-mode {
+      cursor: default;
+    }
+
+    /* Preloader */
+    #preloader-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #06070a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100000;
+    }
+
+    /* Header & Footer */
+    .header, .footer {
+      position: fixed;
+      left: 0;
+      width: 100vw;
+      padding: 1.5rem;
+      z-index: 10000;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      column-gap: var(--spacing-base);
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .header > *, .footer > * {
+      pointer-events: auto;
+    }
+
+    .header {
+      top: 0;
+    }
+
+    .footer {
+      bottom: 0;
+    }
+
+    .nav-section {
+      grid-column: 1 / span 3;
+    }
+
+    .values-section {
+      grid-column: 5 / span 2;
+    }
+
+    .location-section {
+      grid-column: 7 / span 2;
+    }
+
+    .contact-section {
+      grid-column: 9 / span 2;
+    }
+
+    .social-section {
+      grid-column: 11 / span 2;
+      text-align: right;
+    }
+
+    .footer-brand {
+      grid-column: 1 / span 4;
+      font-family: "TheGoodMonolith", monospace;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .footer-brand span {
+      color: var(--color-accent);
+      font-weight: 700;
+    }
+
+    .info-section {
+      grid-column: 8 / span 5;
+      text-align: right;
+    }
+
+    .footer p {
+      font-family: "TheGoodMonolith", monospace;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      line-height: 1.5;
+    }
+
+    /* Logo Component */
+    .logo-container {
+      margin-bottom: var(--spacing-md);
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .logo-circles {
+      position: relative;
+      width: 2.2rem;
+      height: 1.4rem;
+    }
+
+    .circle {
+      position: absolute;
+      border-radius: 50%;
+      transition: transform var(--transition-medium);
+      width: 1.3rem;
+      height: 1.3rem;
+      background-color: var(--color-text);
+      top: 50%;
+    }
+
+    .circle-1 {
+      left: 0;
+      transform: translate(0, -50%);
+    }
+
+    .circle-2 {
+      left: 0.8rem;
+      transform: translate(0, -50%);
+      background-color: var(--color-accent);
+      mix-blend-mode: screen;
+    }
+
+    .logo-container:hover .circle-1 {
+      transform: translate(-0.35rem, -50%);
+    }
+
+    .logo-container:hover .circle-2 {
+      transform: translate(0.35rem, -50%);
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* Typography & Links */
+    h3 {
+      font-size: 12px;
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: "TheGoodMonolith", monospace;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    p, li {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.5;
+    }
+
+    a {
+      position: relative;
+      cursor: pointer;
+      color: var(--color-text);
+      display: inline-block;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color var(--transition-medium);
+    }
+
+    a::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0;
+      height: 100%;
+      background-color: var(--color-text);
+      z-index: -1;
+      transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    a:hover::after {
+      width: 100%;
+    }
+
+    a:hover {
+      color: #000;
+    }
+
+    /* Main Viewport & Grid Canvas */
+    .viewport {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 1;
+      opacity: 0;
+    }
+
+    .canvas-wrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+      isolation: isolate;
+    }
+
+    .grid-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    .grid-item {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      background: #12141c;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      will-change: transform, opacity;
+      z-index: 1;
+      opacity: 1;
+      transition: opacity 0.6s ease, transform 0.25s ease;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .grid-item:hover {
+      border-color: rgba(40, 104, 199, 0.8);
+      transform: translateY(-2px);
+    }
+
+    .grid-item.out-of-view {
+      opacity: 0.12;
+    }
+
+    .grid-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+      filter: grayscale(15%) contrast(105%);
+      transition: filter 0.4s ease;
+    }
+
+    .grid-item:hover img {
+      filter: grayscale(0%) contrast(100%);
+    }
+
+    /* Split Screen Zoom Overlay */
+    .split-screen-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(9, 10, 15, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .split-screen-container.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .split-left, .split-right {
+      position: relative;
+      width: 50vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1;
+      cursor: pointer;
+    }
+
+    .zoom-target {
+      width: 78%;
+      height: 78%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+      border-radius: 4px;
+    }
+
+    /* Image Slide Info Overlay */
+    .image-title-overlay {
+      position: absolute;
+      bottom: 48px;
+      left: 48px;
+      color: white;
+      z-index: 4;
+      opacity: 0;
+      pointer-events: none;
+      max-width: 480px;
+    }
+
+    .image-title-overlay.active {
+      opacity: 1;
+    }
+
+    .image-slide-number {
+      position: relative;
+      width: 100%;
+      height: 20px;
+      margin-bottom: 0.5em;
+      clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+      overflow: hidden;
+    }
+
+    .image-slide-number span {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: var(--color-accent);
+      font-family: "TheGoodMonolith", monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+    }
+
+    .image-slide-title {
+      position: relative;
+      width: 100%;
+      min-height: 56px;
+      margin-bottom: 1em;
+      clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+      overflow: hidden;
+    }
+
+    .image-slide-title h1 {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: white;
+      font-size: 40px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    .image-slide-description {
+      position: relative;
+      width: 100%;
+      min-height: 70px;
+      clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%);
+      overflow: hidden;
+    }
+
+    .description-line {
+      position: relative;
+      display: block;
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.5;
+    }
+
+    /* Scaling Target Image */
+    .scaling-image-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 3;
+      pointer-events: none;
+      will-change: transform;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+    }
+
+    .scaling-image-overlay img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Close Button */
+    .close-button {
+      position: fixed;
+      top: 50%;
+      right: 28px;
+      width: 56px;
+      height: 56px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(40px, -50%);
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    .close-button:hover {
+      background: rgba(40, 104, 199, 0.3);
+      border-color: var(--color-accent);
+    }
+
+    .close-button.active {
+      pointer-events: all;
+    }
+
+    .close-button svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Floating Dock Controls */
+    .controls-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 6;
+      opacity: 0;
+      transition: left 1.2s cubic-bezier(0.87, 0, 0.13, 1);
+    }
+
+    .controls-container.visible {
+      opacity: 1;
+    }
+
+    .controls-container.split-mode {
+      left: 75%;
+    }
+
+    .percentage-indicator {
+      background-color: #171922;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.6em 1.2em;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "TheGoodMonolith", monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #e2e8f0;
+      min-width: 4.5rem;
+    }
+
+    .switch {
+      display: flex;
+      gap: 0.5rem;
+      background-color: #12141c;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.35rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .switch-button {
+      background: none;
+      border: none;
+      color: #71768c;
+      cursor: pointer;
+      font-family: "TheGoodMonolith", monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      position: relative;
+      transition: color 0.25s ease;
+      border-radius: 4px;
+    }
+
+    .switch-button:hover {
+      color: #fff;
+    }
+
+    .switch-button-current {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .sound-toggle {
+      background-color: #171922;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.55rem 0.85rem;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      min-width: 3.5rem;
+      transition: border-color 0.25s ease;
+    }
+
+    .sound-toggle:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .sound-wave-canvas {
+      width: 32px;
+      height: 16px;
+      display: block;
+    }
+
+    /* Subtle Vignette */
+    .page-vignette {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9998;
+      background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.65) 100%);
+    }
+
+    @media (max-width: 900px) {
+      .header {
+        grid-template-columns: repeat(6, 1fr);
+      }
+      .values-section, .location-section {
+        display: none;
+      }
+      .contact-section {
+        grid-column: 3 / span 2;
+      }
+      .social-section {
+        grid-column: 5 / span 2;
+      }
+      .footer-brand {
+        grid-column: 1 / span 6;
+      }
+      .info-section {
+        grid-column: 7 / span 6;
+      }
+      .image-title-overlay {
+        bottom: 24px;
+        left: 24px;
+        max-width: calc(100vw - 48px);
+      }
+      .image-slide-title h1 {
+        font-size: 28px;
+      }
+      .controls-container.split-mode {
+        left: 50%;
+        bottom: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Preloader Screen -->
+  <div id="preloader-overlay"></div>
+
+  <!-- Header Navigation -->
+  <header class="header">
+    <div class="nav-section">
+      <div class="logo-container">
+        <div class="logo-circles">
+          <div class="circle circle-1"></div>
+          <div class="circle circle-2"></div>
+        </div>
+        <div class="brand-title">WebNova Studio</div>
+      </div>
+    </div>
+    <div class="values-section">
+      <h3>+Curriculum</h3>
+      <ul>
+        <li><a href="#ui-systems">UI Systems</a></li>
+        <li><a href="#gsap-motion">GSAP Physics</a></li>
+        <li><a href="#web-canvas">Canvas APIs</a></li>
+      </ul>
+    </div>
+    <div class="location-section">
+      <h3>+Department</h3>
+      <p>Code Craft Lab</p>
+      <p>Interactive Media</p>
+    </div>
+    <div class="contact-section">
+      <h3>+Community</h3>
+      <p><a href="https://webnovastudio.in" target="_blank" rel="noopener">webnovastudio.in</a></p>
+      <p>support@webnovastudio.in</p>
+    </div>
+    <div class="social-section">
+      <h3>+Resources</h3>
+      <ul>
+        <li><a href="#starter-kit">Starter Kit</a></li>
+        <li><a href="#documentation">Source Docs</a></li>
+        <li><a href="#license">MIT License</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Drag / Zoom Canvas Viewport -->
+  <main class="viewport" id="viewport">
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <div class="grid-container" id="gridContainer"></div>
+    </div>
+  </main>
+
+  <!-- Split Screen Zoom Modal Container -->
+  <section class="split-screen-container" id="splitScreenContainer">
+    <div class="split-left" id="splitLeft">
+      <div class="zoom-target" id="zoomTarget"></div>
+    </div>
+    <div class="split-right" id="splitRight"></div>
+  </section>
+
+  <!-- Overlay Details for Expanded Cards -->
+  <article class="image-title-overlay" id="imageTitleOverlay">
+    <div class="image-slide-number" id="imageSlideNumber">
+      <span>MODULE 01</span>
+    </div>
+    <div class="image-slide-title" id="imageSlideTitle">
+      <h1>Dynamic Layout Grid</h1>
+    </div>
+    <div class="image-slide-description" id="imageSlideDescription"></div>
+  </article>
+
+  <!-- Modal Dismiss Button -->
+  <button class="close-button" id="closeButton" aria-label="Close detail view">
+    <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12.85 3.85L11.44 2.44L8 5.88L4.56 2.44L3.15 3.85L6.59 7.29L3.15 10.73L4.56 12.14L8 8.7L11.44 12.14L12.85 10.73L9.41 7.29L12.85 3.85Z" fill="#ffffff" />
+    </svg>
+  </button>
+
+  <!-- Bottom Floating Control Strip -->
+  <aside class="controls-container" id="controlsContainer">
+    <div class="percentage-indicator" id="percentageIndicator">60%</div>
+    <nav class="switch" id="controls">
+      <button class="switch-button" onclick="gallery.setZoom(0.3, this)">ZOOM OUT</button>
+      <button class="switch-button switch-button-current" onclick="gallery.setZoom(0.6, this)">NORMAL</button>
+      <button class="switch-button" onclick="gallery.setZoom(1.0, this)">ZOOM IN</button>
+      <button class="switch-button" onclick="gallery.autoFitZoom(this)">FIT</button>
+    </nav>
+    <button class="sound-toggle" id="soundToggle" title="Toggle Synthesized Audio">
+      <canvas class="sound-wave-canvas" id="soundWaveCanvas" width="32" height="16"></canvas>
+    </button>
+  </aside>
+
+  <!-- Footer Navigation -->
+  <footer class="footer">
+    <div class="footer-brand">
+      WebNova Studio <span>// UI Engineering Template</span>
+    </div>
+    <div class="info-section">
+      <p>Interactive Architecture &amp; Animation Starter Kit</p>
+      <p>Prepared for Student Learning &amp; Rapid Production Deployment</p>
+    </div>
+  </footer>
+
+  <!-- Vignette -->
+  <div class="page-vignette"></div>
+
+  <!-- GSAP Engine & Extensions[cite: 1] -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Draggable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/CustomEase.min.js"></script>
+
+  <script>
+    // Register GSAP plugins safely
+    const pluginsToRegister = [];
+    if (typeof Draggable !== "undefined") pluginsToRegister.push(Draggable);
+    if (typeof Flip !== "undefined") pluginsToRegister.push(Flip);
+    if (typeof CustomEase !== "undefined") pluginsToRegister.push(CustomEase);
+    if (typeof gsap !== "undefined") gsap.registerPlugin(...pluginsToRegister);
+
+    /**
+     * PreloaderManager: Procedural Canvas Orbit Pulse[cite: 1]
+     */
+    class PreloaderManager {
+      constructor() {
+        this.overlay = document.getElementById("preloader-overlay");
+        this.canvas = document.createElement("canvas");
+        this.canvas.width = 300;
+        this.canvas.height = 300;
+        this.ctx = this.canvas.getContext("2d");
+        this.overlay.appendChild(this.canvas);
+        this.startTime = null;
+        this.duration = 1800;
+        this.animationId = null;
+        this.startAnimation();
+      }
+
+      startAnimation() {
+        const cx = this.canvas.width / 2;
+        const cy = this.canvas.height / 2;
+        let lastTime = 0;
+        let elapsed = 0;
+        const rings = [
+          { radius: 22, count: 8 },
+          { radius: 38, count: 12 },
+          { radius: 54, count: 16 },
+          { radius: 70, count: 20 },
+          { radius: 86, count: 24 }
+        ];
+
+        const animate = (timestamp) => {
+          if (!this.startTime) this.startTime = timestamp;
+          if (!lastTime) lastTime = timestamp;
+          const dt = timestamp - lastTime;
+          lastTime = timestamp;
+          elapsed += dt * 0.0012;
+
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // Center nucleus
+          this.ctx.beginPath();
+          this.ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+          this.ctx.fillStyle = "rgba(40, 104, 199, 0.9)";
+          this.ctx.fill();
+
+          // Orbital lines & nodes
+          rings.forEach((ring, idx) => {
+            for (let i = 0; i < ring.count; i++) {
+              const angle = (i / ring.count) * Math.PI * 2;
+              const pulse = Math.sin(elapsed * 2.5 - idx * 0.45) * 3.5;
+              const x = cx + Math.cos(angle) * (ring.radius + pulse);
+              const y = cy + Math.sin(angle) * (ring.radius + pulse);
+              const wave = 0.35 + Math.sin(elapsed * 2.5 - idx * 0.45 + i * 0.25) * 0.65;
+              const isActive = wave > 0.65;
+
+              this.ctx.beginPath();
+              this.ctx.moveTo(cx, cy);
+              this.ctx.lineTo(x, y);
+              this.ctx.lineWidth = 0.75;
+              this.ctx.strokeStyle = isActive
+                ? `rgba(40, 104, 199, ${wave * 0.6})`
+                : `rgba(255, 255, 255, ${wave * 0.2})`;
+              this.ctx.stroke();
+
+              this.ctx.beginPath();
+              this.ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+              this.ctx.fillStyle = isActive
+                ? `rgba(74, 144, 226, ${wave})`
+                : `rgba(200, 210, 230, ${wave * 0.5})`;
+              this.ctx.fill();
+            }
+          });
+
+          if (timestamp - this.startTime >= this.duration) {
+            this.complete();
+            return;
+          }
+          this.animationId = requestAnimationFrame(animate);
+        };
+        this.animationId = requestAnimationFrame(animate);
+      }
+
+      complete(onComplete) {
+        if (this.animationId) cancelAnimationFrame(this.animationId);
+        if (this.overlay) {
+          this.overlay.style.opacity = "0";
+          this.overlay.style.transition = "opacity 0.6s ease";
+          setTimeout(() => {
+            this.overlay?.remove();
+            if (onComplete) onComplete();
+          }, 600);
+        }
+      }
+    }
+
+    /**
+     * WebAudio & Waveform Micro-Synthesizer (Zero External Audio Dependencies)
+     */
+    class SoundEngine {
+      constructor() {
+        this.enabled = false;
+        this.audioCtx = null;
+        this.canvas = document.getElementById("soundWaveCanvas");
+        this.toggleBtn = document.getElementById("soundToggle");
+        this.initVisualizer();
+      }
+
+      initAudio() {
+        if (!this.audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) this.audioCtx = new AudioContextClass();
+        }
+      }
+
+      playTone(type) {
+        if (!this.enabled) return;
+        this.initAudio();
+        if (!this.audioCtx) return;
+
+        const ctx = this.audioCtx;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (type === "click") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.04);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.start(now);
+          osc.stop(now + 0.04);
+        } else if (type === "open") {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(720, now + 0.18);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.start(now);
+          osc.stop(now + 0.18);
+        } else if (type === "close") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(540, now);
+          osc.frequency.exponentialRampToValueAtTime(180, now + 0.14);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+          osc.start(now);
+          osc.stop(now + 0.14);
+        } else if (type === "zoom") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.linearRampToValueAtTime(500, now + 0.12);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        }
+      }
+
+      toggle() {
+        this.enabled = !this.enabled;
+        this.initAudio();
+        if (this.audioCtx && this.audioCtx.state === "suspended") {
+          this.audioCtx.resume();
+        }
+        this.toggleBtn.classList.toggle("active", this.enabled);
+        if (this.enabled) this.playTone("click");
+      }
+
+      initVisualizer() {
+        if (!this.canvas) return;
+        const ctx = this.canvas.getContext("2d");
+        const w = 32;
+        const h = 16;
+        const cy = Math.floor(h / 2);
+        let amplitude = 0;
+
+        const loop = () => {
+          const target = this.enabled ? 1 : 0;
+          amplitude += (target - amplitude) * 0.1;
+          ctx.clearRect(0, 0, w, h);
+          const t = Date.now() / 1000;
+
+          if (!this.enabled && amplitude < 0.02) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.25)";
+            ctx.fillRect(0, cy, w, 2);
+          } else {
+            ctx.fillStyle = "#2868c7";
+            for (let i = 0; i < w; i++) {
+              const x = i - w / 2;
+              const env = Math.exp((-x * x) / 70);
+              const y = cy + Math.sin(x * 0.45 - t * 10) * env * 6 * amplitude;
+              ctx.fillRect(i, Math.round(y), 1.5, 2);
+            }
+          }
+          requestAnimationFrame(loop);
+        };
+        loop();
+      }
+    }
+
+    /**
+     * StudioGallery: GSAP Draggable + Flip Zoom Virtual Grid[cite: 1]
+     */
+    class StudioGallery {
+      constructor() {
+        this.viewport = document.getElementById("viewport");
+        this.canvasWrapper = document.getElementById("canvasWrapper");
+        this.gridContainer = document.getElementById("gridContainer");
+        this.splitScreenContainer = document.getElementById("splitScreenContainer");
+        this.imageTitleOverlay = document.getElementById("imageTitleOverlay");
+        this.closeButton = document.getElementById("closeButton");
+        this.controlsContainer = document.getElementById("controlsContainer");
+        this.soundToggle = document.getElementById("soundToggle");
+
+        this.customEase = typeof CustomEase !== "undefined"
+          ? CustomEase.create("smooth", ".87,0,.13,1")
+          : "power2.inOut";
+        this.centerEase = typeof CustomEase !== "undefined"
+          ? CustomEase.create("center", ".25,.46,.45,.94")
+          : "power2.out";
+
+        this.config = {
+          itemSize: 320,
+          baseGap: 16,
+          rows: 6,
+          cols: 10,
+          currentZoom: 0.6,
+          currentGap: 32
+        };
+
+        this.zoomState = {
+          isActive: false,
+          selectedItem: null,
+          flipAnimation: null,
+          scalingOverlay: null
+        };
+
+        this.gridItems = [];
+        this.gridDimensions = {};
+        this.lastValidPosition = { x: 0, y: 0 };
+        this.draggable = null;
+        this.viewportObserver = null;
+
+        this.soundEngine = new SoundEngine();
+        this.initDataSet();
+      }
+
+      initDataSet() {
+        // High quality design system & development imagery (Unsplash IDs)
+        const imageIds = [
+          "1507238691740-187a5b1d37b8", // Modern Web Workspace
+          "1551288049-bebda4e38f71", // Analytics & Dashboards
+          "1526374965328-7f61d4dc18c5", // Terminal / Code Matrix
+          "1555066931-4365d14bab8c", // Front-End IDE Syntax
+          "1581291518857-4e27b48ff24e", // UI Wireframes & Layouts
+          "1518770660439-4636190af475", // Chip Architecture & Hardware
+          "1558655146-d09347e92766", // Minimal Typography Design
+          "1460925895917-afdab827c52f", // Dashboard Metrics & Graphs
+          "1504384308090-c894fdcc538d", // Tech Workstations
+          "1517694712202-14dd9538aa97", // Responsive Device Testing
+          "1531403009284-440f080d1e12", // Agile Sprint Engineering
+          "1550751827-4bd374c3f58b"  // Digital Security Systems
+        ];
+
+        this.galleryImages = imageIds.map(id => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=700&q=80`);
+
+        this.curriculumData = [
+          {
+            number: "MODULE 01",
+            title: "Dynamic Canvas Matrix",
+            description: "Study the mechanics of infinite coordinates. Learn how to map Cartesian offsets directly to CSS transforms via DOMMatrix math without triggering layout thrashing."
+          },
+          {
+            number: "MODULE 02",
+            title: "FLIP Animation Engine",
+            description: "First, Last, Invert, Play. Master GSAP's Flip plugin to smoothly transition items from an unbounded draggable grid into an isolated split-screen inspection modal."
+          },
+          {
+            number: "MODULE 03",
+            title: "Intersection Virtualization",
+            description: "Optimize browser rendering cycles across large grids. Use IntersectionObserver thresholds to dial down opacity and suppress paint overhead on offscreen nodes."
+          },
+          {
+            number: "MODULE 04",
+            title: "Synthesized Audio Feedback",
+            description: "Build reactive micro-interactions without asset bloat. Generate real-time oscillator waveforms and audio envelopes entirely using native browser WebAudio APIs."
+          },
+          {
+            number: "MODULE 05",
+            title: "Responsive Scale Topology",
+            description: "Calculate dynamic bounding volumes relative to window dimensions to prevent panning drift, clamp edges smoothly, and maintain centered zoom anchors."
+          },
+          {
+            number: "MODULE 06",
+            title: "Accessible Interaction Design",
+            description: "Balance dynamic kinetic gestures with clear keyboard bindings. Support hotkey shortcuts (1, 2, 3, F, Esc) to guarantee full usability across diverse devices."
+          }
+        ];
+      }
+
+      calculateGapForZoom(zoomLevel) {
+        if (zoomLevel >= 1.0) return 16;
+        if (zoomLevel >= 0.6) return 32;
+        return 64;
+      }
+
+      calculateGridDimensions(gap = this.config.currentGap) {
+        const totalWidth = this.config.cols * (this.config.itemSize + gap) - gap;
+        const totalHeight = this.config.rows * (this.config.itemSize + gap) - gap;
+        this.gridDimensions = {
+          width: totalWidth,
+          height: totalHeight,
+          scaledWidth: totalWidth * this.config.currentZoom,
+          scaledHeight: totalHeight * this.config.currentZoom,
+          gap: gap
+        };
+        return this.gridDimensions;
+      }
+
+      generateGridItems() {
+        this.config.currentGap = this.calculateGapForZoom(this.config.currentZoom);
+        this.calculateGridDimensions();
+        this.canvasWrapper.style.width = `${this.gridDimensions.width}px`;
+        this.canvasWrapper.style.height = `${this.gridDimensions.height}px`;
+        this.gridContainer.innerHTML = "";
+        this.gridItems = [];
+
+        let imageIndex = 0;
+        for (let row = 0; row < this.config.rows; row++) {
+          for (let col = 0; col < this.config.cols; col++) {
+            const item = document.createElement("div");
+            item.className = "grid-item";
+
+            const x = col * (this.config.itemSize + this.config.currentGap);
+            const y = row * (this.config.itemSize + this.config.currentGap);
+
+            item.style.left = `${x}px`;
+            item.style.top = `${y}px`;
+            item.style.opacity = "0";
+
+            const imageUrl = this.galleryImages[imageIndex % this.galleryImages.length];
+            imageIndex++;
+
+            const img = document.createElement("img");
+            img.src = imageUrl;
+            img.alt = `UI Template Module ${imageIndex}`;
+            img.loading = "lazy";
+            item.appendChild(img);
+
+            const itemData = {
+              element: item,
+              img: img,
+              row: row,
+              col: col,
+              baseX: x,
+              baseY: y,
+              imageUrl: imageUrl,
+              index: this.gridItems.length
+            };
+
+            item.addEventListener("click", () => {
+              if (!this.zoomState.isActive) {
+                this.soundEngine.playTone("click");
+                this.enterZoomMode(itemData);
+              }
+            });
+
+            this.gridContainer.appendChild(item);
+            this.gridItems.push(itemData);
+          }
+        }
+      }
+
+      setupViewportObserver() {
+        if (this.viewportObserver) this.viewportObserver.disconnect();
+        this.viewportObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (this.zoomState.selectedItem && entry.target === this.zoomState.selectedItem.element) return;
+              if (entry.isIntersecting) {
+                entry.target.classList.remove("out-of-view");
+                gsap.to(entry.target, { opacity: 1, duration: 0.5, ease: "power2.out" });
+              } else {
+                entry.target.classList.add("out-of-view");
+                gsap.to(entry.target, { opacity: 0.12, duration: 0.5, ease: "power2.out" });
+              }
+            });
+          },
+          { root: null, threshold: 0.15, rootMargin: "10%" }
+        );
+
+        this.gridItems.forEach((item) => this.viewportObserver.observe(item.element));
+      }
+
+      splitTextIntoLines(element, text) {
+        element.innerHTML = "";
+        const sentences = text.split(/(?<=[.!?])\s+/);
+        const lines = [];
+        const temp = document.createElement("div");
+        temp.style.cssText = `
+          position: absolute;
+          visibility: hidden;
+          width: ${element.offsetWidth || 400}px;
+          font-family: 'PPNeueMontreal', sans-serif;
+          font-size: 15px;
+          line-height: 1.5;
+        `;
+        document.body.appendChild(temp);
+
+        let currentLine = "";
+        sentences.forEach((sentence) => {
+          const words = sentence.split(" ");
+          words.forEach((word) => {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            temp.textContent = testLine;
+            if (temp.offsetWidth > (element.offsetWidth || 400) && currentLine) {
+              lines.push(currentLine);
+              currentLine = word;
+            } else {
+              currentLine = testLine;
+            }
+          });
+        });
+        if (currentLine) lines.push(currentLine);
+        document.body.removeChild(temp);
+
+        lines.forEach((lineText) => {
+          const lineSpan = document.createElement("span");
+          lineSpan.className = "description-line";
+          lineSpan.textContent = lineText;
+          element.appendChild(lineSpan);
+        });
+
+        return element.querySelectorAll(".description-line");
+      }
+
+      updateTitleOverlay(index) {
+        const data = this.curriculumData[index % this.curriculumData.length];
+        const numEl = document.querySelector("#imageSlideNumber span");
+        const titleEl = document.querySelector("#imageSlideTitle h1");
+        const descEl = document.getElementById("imageSlideDescription");
+
+        if (numEl && titleEl && descEl) {
+          numEl.textContent = data.number;
+          titleEl.textContent = data.title;
+          this.descriptionLines = this.splitTextIntoLines(descEl, data.description);
+        }
+      }
+
+      createScalingOverlay(sourceImg) {
+        const overlay = document.createElement("div");
+        overlay.className = "scaling-image-overlay";
+        const img = document.createElement("img");
+        img.src = sourceImg.src;
+        overlay.appendChild(img);
+        document.body.appendChild(overlay);
+
+        const sourceRect = sourceImg.getBoundingClientRect();
+        gsap.set(overlay, {
+          left: sourceRect.left,
+          top: sourceRect.top,
+          width: sourceRect.width,
+          height: sourceRect.height,
+          opacity: 1
+        });
+        return overlay;
+      }
+
+      enterZoomMode(selectedItemData) {
+        if (this.zoomState.isActive) return;
+        this.zoomState.isActive = true;
+        this.zoomState.selectedItem = selectedItemData;
+        this.soundEngine.playTone("open");
+
+        if (this.draggable) this.draggable.disable();
+        document.body.classList.add("zoom-mode");
+
+        const splitContainer = this.splitScreenContainer;
+        const zoomTarget = document.getElementById("zoomTarget");
+        splitContainer.classList.add("active");
+
+        gsap.to(splitContainer, { opacity: 1, duration: 1.0, ease: this.customEase });
+
+        this.zoomState.scalingOverlay = this.createScalingOverlay(selectedItemData.img);
+        gsap.set(selectedItemData.img, { opacity: 0 });
+
+        this.zoomState.flipAnimation = Flip.fit(this.zoomState.scalingOverlay, zoomTarget, {
+          duration: 1.1,
+          ease: this.customEase,
+          absolute: true,
+          onComplete: () => {
+            this.updateTitleOverlay(selectedItemData.index);
+            const overlay = this.imageTitleOverlay;
+
+            gsap.set("#imageSlideNumber span", { y: 20, opacity: 0 });
+            gsap.set("#imageSlideTitle h1", { y: 50, opacity: 0 });
+            gsap.set(this.descriptionLines, { y: 50, opacity: 0 });
+
+            overlay.classList.add("active");
+            gsap.to(overlay, { opacity: 1, duration: 0.3, ease: "power2.out" });
+
+            gsap.to("#imageSlideNumber span", { duration: 0.6, y: 0, opacity: 1, ease: this.customEase, delay: 0.05 });
+            gsap.to("#imageSlideTitle h1", { duration: 0.7, y: 0, opacity: 1, ease: this.customEase, delay: 0.1 });
+            gsap.to(this.descriptionLines, { duration: 0.7, y: 0, opacity: 1, ease: this.customEase, delay: 0.15, stagger: 0.1 });
+          }
+        });
+
+        this.controlsContainer.classList.add("split-mode");
+        gsap.fromTo(this.closeButton, { x: 30, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power2.out", delay: 0.7 });
+        this.closeButton.classList.add("active");
+
+        document.getElementById("splitLeft").addEventListener("click", this.handleSplitAreaClick);
+        document.getElementById("splitRight").addEventListener("click", this.handleSplitAreaClick);
+        document.addEventListener("keydown", this.handleZoomKeys);
+      }
+
+      handleSplitAreaClick = (e) => {
+        if (e.target === e.currentTarget) this.exitZoomMode();
+      };
+
+      handleZoomKeys = (e) => {
+        if (!this.zoomState.isActive) return;
+        if (e.key === "Escape") this.exitZoomMode();
+      };
+
+      exitZoomMode() {
+        if (!this.zoomState.isActive || !this.zoomState.selectedItem || !this.zoomState.scalingOverlay) return;
+        this.soundEngine.playTone("close");
+        document.removeEventListener("keydown", this.handleZoomKeys);
+
+        const splitLeft = document.getElementById("splitLeft");
+        const splitRight = document.getElementById("splitRight");
+        if (splitLeft) splitLeft.removeEventListener("click", this.handleSplitAreaClick);
+        if (splitRight) splitRight.removeEventListener("click", this.handleSplitAreaClick);
+
+        const splitContainer = this.splitScreenContainer;
+        const selectedElement = this.zoomState.selectedItem.element;
+        const selectedImg = this.zoomState.selectedItem.img;
+
+        if (this.zoomState.flipAnimation) this.zoomState.flipAnimation.kill();
+
+        const overlay = this.imageTitleOverlay;
+        gsap.to(overlay, { opacity: 0, duration: 0.25, ease: "power2.out" });
+        gsap.to(this.closeButton, { duration: 0.25, opacity: 0, x: 30, ease: "power2.in" });
+        splitContainer.classList.remove("active");
+        this.controlsContainer.classList.remove("split-mode");
+
+        gsap.to(splitContainer, { opacity: 0, duration: 0.6, ease: "power2.out" });
+
+        Flip.fit(this.zoomState.scalingOverlay, selectedElement, {
+          duration: 1.0,
+          ease: this.customEase,
+          absolute: true,
+          onComplete: () => {
+            gsap.set(selectedImg, { opacity: 1 });
+            if (this.zoomState.scalingOverlay) {
+              this.zoomState.scalingOverlay.remove();
+              this.zoomState.scalingOverlay = null;
+            }
+            document.body.classList.remove("zoom-mode");
+            this.closeButton.classList.remove("active");
+            if (this.draggable) this.draggable.enable();
+            this.zoomState.isActive = false;
+            this.zoomState.selectedItem = null;
+            this.zoomState.flipAnimation = null;
+          }
+        });
+      }
+
+      calculateBounds() {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const { scaledWidth, scaledHeight } = this.gridDimensions;
+        const marginX = this.config.currentGap * this.config.currentZoom;
+        const marginY = this.config.currentGap * this.config.currentZoom;
+
+        let minX, maxX, minY, maxY;
+        if (scaledWidth <= vw) {
+          minX = maxX = (vw - scaledWidth) / 2;
+        } else {
+          maxX = marginX;
+          minX = vw - scaledWidth - marginX;
+        }
+
+        if (scaledHeight <= vh) {
+          minY = maxY = (vh - scaledHeight) / 2;
+        } else {
+          maxY = marginY;
+          minY = vh - scaledHeight - marginY;
+        }
+
+        return { minX, maxX, minY, maxY };
+      }
+
+      initDraggable() {
+        if (this.draggable) this.draggable.kill();
+        this.calculateGridDimensions(this.config.currentGap);
+        const bounds = this.calculateBounds();
+
+        this.draggable = Draggable.create(this.canvasWrapper, {
+          type: "x,y",
+          bounds: bounds,
+          edgeResistance: 0.75,
+          onDragStart: () => {
+            document.body.classList.add("dragging");
+            this.lastValidPosition.x = this.draggable.x;
+            this.lastValidPosition.y = this.draggable.y;
+          },
+          onDrag: () => {
+            this.lastValidPosition.x = this.draggable.x;
+            this.lastValidPosition.y = this.draggable.y;
+          },
+          onDragEnd: () => {
+            document.body.classList.remove("dragging");
+          }
+        })[0];
+      }
+
+      calculateFitZoom() {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - 80;
+        const currentGap = this.calculateGapForZoom(1.0);
+        const gridWidth = this.config.cols * (this.config.itemSize + currentGap) - currentGap;
+        const gridHeight = this.config.rows * (this.config.itemSize + currentGap) - currentGap;
+        const margin = 40;
+        const availableWidth = vw - margin * 2;
+        const availableHeight = vh - margin * 2;
+        const zoomToFitWidth = availableWidth / gridWidth;
+        const zoomToFitHeight = availableHeight / gridHeight;
+        return Math.max(0.15, Math.min(1.8, Math.min(zoomToFitWidth, zoomToFitHeight)));
+      }
+
+      playIntroAnimation() {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const screenCenterX = vw / 2;
+        const screenCenterY = vh / 2;
+
+        const canvasStyle = getComputedStyle(this.canvasWrapper);
+        const matrix = new DOMMatrix(canvasStyle.transform);
+        const centerX = (screenCenterX - matrix.m41) / matrix.a - this.config.itemSize / 2;
+        const centerY = (screenCenterY - matrix.m42) / matrix.a - this.config.itemSize / 2;
+
+        this.gridItems.forEach((itemData, index) => {
+          gsap.set(itemData.element, {
+            left: centerX,
+            top: centerY,
+            scale: 0.85,
+            zIndex: this.gridItems.length - index,
+            opacity: 0
+          });
+        });
+
+        gsap.to(this.gridItems.map(item => item.element), {
+          duration: 0.25,
+          left: (index) => this.gridItems[index].baseX,
+          top: (index) => this.gridItems[index].baseY,
+          scale: 1,
+          opacity: 1,
+          ease: "power2.out",
+          stagger: {
+            amount: 1.4,
+            from: "start",
+            grid: [this.config.rows, this.config.cols]
+          },
+          onComplete: () => {
+            this.gridItems.forEach(itemData => gsap.set(itemData.element, { zIndex: 1 }));
+            this.controlsContainer.classList.add("visible");
+            gsap.to(this.controlsContainer, { opacity: 1, duration: 0.5, ease: "power2.out" });
+          }
+        });
+      }
+
+      updatePercentageIndicator(zoomLevel) {
+        const percentage = Math.round(zoomLevel * 100);
+        document.getElementById("percentageIndicator").textContent = `${percentage}%`;
+      }
+
+      setZoom(zoomLevel, buttonElement = null) {
+        if (this.zoomState.isActive) {
+          this.exitZoomMode();
+          return;
+        }
+
+        const newGap = this.calculateGapForZoom(zoomLevel);
+        const oldZoom = this.config.currentZoom;
+        this.config.currentZoom = zoomLevel;
+        this.soundEngine.playTone("zoom");
+
+        this.calculateGridDimensions(this.config.currentGap);
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const centerX = (vw - this.gridDimensions.width * oldZoom) / 2;
+        const centerY = (vh - this.gridDimensions.height * oldZoom) / 2;
+
+        gsap.to(this.canvasWrapper, {
+          duration: 0.5,
+          x: centerX,
+          y: centerY,
+          ease: this.centerEase,
+          onComplete: () => {
+            if (newGap !== this.config.currentGap) {
+              this.gridItems.forEach(itemData => {
+                const nx = itemData.col * (this.config.itemSize + newGap);
+                const ny = itemData.row * (this.config.itemSize + newGap);
+                itemData.baseX = nx;
+                itemData.baseY = ny;
+                gsap.to(itemData.element, { duration: 1.0, left: nx, top: ny, ease: this.customEase });
+              });
+              const nw = this.config.cols * (this.config.itemSize + newGap) - newGap;
+              const nh = this.config.rows * (this.config.itemSize + newGap) - newGap;
+              gsap.to(this.canvasWrapper, { duration: 1.0, width: nw, height: nh, ease: this.customEase });
+              this.config.currentGap = newGap;
+            }
+
+            this.calculateGridDimensions(newGap);
+            const finalWidth = this.gridDimensions.width * zoomLevel;
+            const finalHeight = this.gridDimensions.height * zoomLevel;
+            const finalX = (vw - finalWidth) / 2;
+            const finalY = (vh - finalHeight) / 2;
+
+            gsap.to(this.canvasWrapper, {
+              duration: 1.1,
+              scale: zoomLevel,
+              x: finalX,
+              y: finalY,
+              ease: this.customEase,
+              onComplete: () => {
+                this.lastValidPosition.x = finalX;
+                this.lastValidPosition.y = finalY;
+                this.calculateGridDimensions(newGap);
+                this.initDraggable();
+              }
+            });
+          }
+        });
+
+        this.updatePercentageIndicator(zoomLevel);
+        document.querySelectorAll(".switch-button").forEach(btn => btn.classList.remove("switch-button-current"));
+        if (buttonElement) buttonElement.classList.add("switch-button-current");
+      }
+
+      autoFitZoom(buttonElement = null) {
+        const fitZoom = this.calculateFitZoom();
+        this.setZoom(fitZoom, buttonElement);
+      }
+
+      init() {
+        this.config.currentGap = this.calculateGapForZoom(this.config.currentZoom);
+        this.generateGridItems();
+
+        gsap.set(this.viewport, { opacity: 0 });
+        gsap.set(this.canvasWrapper, { scale: this.config.currentZoom });
+
+        this.calculateGridDimensions(this.config.currentGap);
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const cx = (vw - this.gridDimensions.width) / 2;
+        const cy = (vh - this.gridDimensions.height) / 2;
+
+        gsap.set(this.canvasWrapper, { x: cx, y: cy });
+        this.lastValidPosition.x = cx;
+        this.lastValidPosition.y = cy;
+        this.updatePercentageIndicator(this.config.currentZoom);
+
+        this.setupEventListeners();
+
+        gsap.to(this.viewport, {
+          duration: 0.6,
+          opacity: 1,
+          ease: "power2.inOut",
+          onComplete: () => {
+            this.playIntroAnimation();
+            gsap.to(".header", { duration: 1.0, opacity: 1, ease: "power2.out", delay: 0.6 });
+            gsap.to(".footer", { duration: 1.0, opacity: 1, ease: "power2.out", delay: 0.8 });
+            setTimeout(() => {
+              this.initDraggable();
+              this.setupViewportObserver();
+            }, 1400);
+          }
+        });
+      }
+
+      setupEventListeners() {
+        window.addEventListener("resize", () => {
+          setTimeout(() => {
+            this.initDraggable();
+          }, 150);
+        });
+
+        this.closeButton.addEventListener("click", () => this.exitZoomMode());
+        this.soundToggle.addEventListener("click", () => this.soundEngine.toggle());
+
+        document.addEventListener("keydown", (e) => {
+          if (this.zoomState.isActive) return;
+          if (e.key === "1") this.setZoom(0.3);
+          if (e.key === "2") this.setZoom(0.6);
+          if (e.key === "3") this.setZoom(1.0);
+          if (e.key.toLowerCase() === "f") this.autoFitZoom();
+        });
+      }
+    }
+
+    let gallery;
+    document.addEventListener("DOMContentLoaded", () => {
+      const preloader = new PreloaderManager();
+      setTimeout(() => {
+        preloader.complete(() => {
+          gallery = new StudioGallery();
+          gallery.init();
+        });
+      }, 1800);
+    });
+  </script>
+</body>
+</html>
